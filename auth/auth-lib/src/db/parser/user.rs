@@ -1,9 +1,8 @@
 extern crate chrono;
 
-use bson::Document;
 use chrono::Utc;
 use serde::{Deserialize, Serialize, };
-use mongodb::{bson::doc, sync::{Client, self}, Collection, bson::serde_helpers::uuid_1_as_binary, results::{InsertOneResult, DeleteResult, UpdateResult}};
+use mongodb::{bson::doc, results::{InsertOneResult, DeleteResult, UpdateResult}};
 use uuid::Uuid;
 
 use crate::db::mongo::MongoDB;
