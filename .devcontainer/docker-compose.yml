@@ -1,24 +1,19 @@
-version: '3'
+version: '3.8'
+
 services:
   auth-service:
     build:
-      context: ../
+      context: ../auth
       dockerfile: ./Dockerfile
     ports:
-      - "3000:3000"
+      - '3000:3000'
     env_file:
       - ./config/.env
     volumes:
       - type: bind
         source: ../auth/auth-service
         target: /auth/auth-service
+      - type: bind
+        source: ../auth/auth-lib
+        target: /auth/auth-lib
     working_dir: /auth
-  users-db:
-    image: mariadb:latest
-    env_file:
-      - ./config/.db.env
-    ports:
-      - "3306:3306"
-    volumes:
-      - ./config/mariadb:/docker-entrypoint-initdb.d
-      - ./data:/var/lib/mysql
