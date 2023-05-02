@@ -1,6 +1,8 @@
 use bson::Document;
 use serde::{Deserialize, Deserializer};
 use mongodb::{bson::doc, options::{ClientOptions, ServerApi, ServerApiVersion}, sync::{Client, self}, Collection};
+
+use super::parser::user::User;
 extern crate env_logger;
 
 #[derive(Debug, Deserialize, Clone)]
@@ -33,4 +35,20 @@ pub fn connect_mongo(url: &String) -> mongodb::error::Result<Client> {
     println!("Pinged your deployment. You successfully connected to MongoDB!");
     
     Ok(client)
+}
+
+pub fn find_one(_mongodb: &MongoDB, filter: impl Into<Option<Document>>) -> bool {
+    let _coll = _mongodb.client.database(&_mongodb.database.name).collection::<User>(&_mongodb.database.collection);
+    
+    let _res = _coll.count_documents(filter, None);
+
+    match _res {
+        Ok(n) => {
+            if n > 0 {
+                return true;
+            }
+            false
+        }
+        Err(_) => { false }
+    }
 }

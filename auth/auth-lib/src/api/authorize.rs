@@ -4,7 +4,7 @@ use actix_web::{Scope, web, HttpResponse, http::StatusCode, HttpRequest};
 use bson::doc;
 use jsonwebtoken::{ encode, EncodingKey, Header, DecodingKey, Validation, TokenData, decode };
 use serde::{Deserialize, Serialize};
-use crate::db::{mongo::MongoDB, parser::user::{User, DBParser}};
+use crate::{db::{mongo::{MongoDB, find_one}, parser::user::{User, DBParser}}, access::tokenize::parser::encode_refresh_token};
 use uuid::Uuid;
 extern crate argon2;
 
@@ -67,44 +67,114 @@ pub fn authorize() -> Scope {
     web::scope("/user")
         .app_data(web::Data::new(secret.clone()))
         .route("/login", web::post().to(login))
-        .route("/register", web::get().to(register))
+        .route("/register", web::post().to(register))
         .route("/validate", web::post().to(validate))
         .route("/refresh", web::post().to(refresh))
 }
 
-async fn login(req: HttpRequest, form: web::Form<RegisterForm>) -> HttpResponse {
+async fn register(req: HttpRequest, form: web::Form<RegisterForm>) -> HttpResponse {
     let data = req.app_data::<web::Data<MongoDB>>().unwrap().database.clone();
     let client = req.app_data::<web::Data<MongoDB>>().unwrap().client.clone();
+
+    // Get secret from local data
+    let _secret = req.app_data::<web::Data<Secret>>();
+
+    match _secret {
+        Some(_) => {}
+        None => {
+            return HttpResponse::new(StatusCode::BAD_REQUEST);
+        }
+    }
 
     let _mongodb = MongoDB {
         client: client,
         database: data,
     };
 
+    // Check if username or email already exist in DB
+    let _username = form.username.clone();
+    let _email = form.email.clone();
+
+    let filter_email = doc! {
+            "email": _email
+    };
+
+    
+    let filter_username = doc! {
+        "username": _username
+    };
+    
+    if find_one(&_mongodb, filter_email) || find_one(&_mongodb, filter_username) {
+        return HttpResponse::BadRequest().body(format!("Username or Email already in use!"));
+    }
+
+    // Create a new user
     let _new_user = User {
         uuid: Uuid::new_v4(),
         username: form.username.clone(),
         email: form.email.clone(),
-        password_hash: form.password.clone(),
+        password_hash: form.generate_pwsh(),
         name: form.name.clone(),
-        refresh_token: "Some Refresh Token".to_string(),
+        refresh_token: encode_refresh_token(form.username.clone(), _secret.unwrap()),
+        //refresh_token: "".to_string(),
         photo_url: form.photo_url.clone(),
         refresh_creation: chrono::offset::Utc::now(),
     };
 
+    // Insert the user in the database
     let _db = _new_user.insert(&_mongodb);
 
     match _db {
         Ok(_) => {
-            HttpResponse::Ok().body(format!("User: {:#?}", _new_user))
+            HttpResponse::Ok().body(format!("Created user: {:#?}", _new_user))
         }
         Err(_) => {
-            HttpResponse::new(StatusCode::BAD_REQUEST)
+            HttpResponse::BadRequest().body(format!("Could not create user!"))
         }
     }
 }
 
-async fn register() -> HttpResponse {
+async fn login(req: HttpRequest, form: web::Form<LoginForm>) -> HttpResponse {
+    let data = req.app_data::<web::Data<MongoDB>>().unwrap().database.clone();
+    let client = req.app_data::<web::Data<MongoDB>>().unwrap().client.clone();
+
+    // Get secret from local data
+    let _secret = req.app_data::<web::Data<Secret>>();
+
+    match _secret {
+        Some(_) => {}
+        None => {
+            return HttpResponse::new(StatusCode::BAD_REQUEST);
+        }
+    }
+
+    let _mongodb = MongoDB {
+        client: client,
+        database: data,
+    };
+
+    // Check if username exists in DB
+    let _username = form.username.clone();
+
+    let filter_username = doc! {
+        "username": _username
+    };
+
+    if !find_one(&_mongodb, filter_username.clone()) {
+        return HttpResponse::BadRequest().body(format!("Username not found!"));
+    }
+    let _coll = _mongodb.client.database(&_mongodb.database.name).collection::<User>(&_mongodb.database.collection);
+    let _cursor = _coll.find(filter_username.clone(), None).unwrap();
+    let _user = _cursor.deserialize_current().unwrap();
+    
+    let _password_hash = _user.password_hash.clone();
+    
+    if !form.verify_pwsh(&_password_hash) {
+        return HttpResponse::BadRequest().body(format!("Password doesn't match!"));   
+    }
+
+    let _password = form.password.clone();
+
     HttpResponse::new(StatusCode::OK)
 }
 

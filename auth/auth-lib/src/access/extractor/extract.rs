@@ -13,8 +13,7 @@ pub struct AccessClaims {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Token {
     pub username: String,
-    pub name: Option<String>,
-    pub photo_url: Option<String>,
+    pub name: String,
 }
 
 /* Trait to validate and retrieve User Data from JWT */
@@ -65,7 +64,6 @@ impl FromRequest for Token {
                         Token {
                             username: t.claims.custom.username,
                             name: t.claims.custom.name,
-                            photo_url: t.claims.custom.photo_url,
                         }
                     )
                 );
