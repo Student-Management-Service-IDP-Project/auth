@@ -9,6 +9,7 @@ extern crate argon2;
 #[allow(unused_imports)]
 use super::super::access::tokens::Secret;
 
+/// Should be passed from the Application's FrontEnd microservice
 #[derive(Deserialize, Serialize, Debug)]
 pub struct RegisterForm {
     pub username: String,
@@ -19,15 +20,16 @@ pub struct RegisterForm {
     pub photo_url: Option<String>,
 }
 
+/// Should be passed from the Application's FrontEnd microservice
 #[derive(Deserialize, Serialize, Debug)]
 pub struct LoginForm {
     pub username: String,
     pub password: String,
 }
 
+/// Trait for password verification against hash using bcrypt algorithm
 pub trait Authorize {
     fn verify_pwsh(&self, hash: &String) -> bool;
-    fn generate_refresh(&self) -> String;
 }
 
 impl Authorize for LoginForm {
@@ -36,20 +38,16 @@ impl Authorize for LoginForm {
 
         argon2::verify_encoded(&hash, &_pws.as_bytes()).unwrap()
     }
-
-    fn generate_refresh(&self) -> String {
-        todo!()
-    }
 }
 
+/// Trait for password hash to be stored in database bcrypt algorithm
 pub trait Generate {
-    fn generate_pwsh(&self) -> String;
+    fn generate_pwsh(&self, salt: &[u8]) -> String;
 }
 
 impl Generate for RegisterForm {
-    fn generate_pwsh(&self) -> String {
+    fn generate_pwsh(&self, salt: &[u8]) -> String {
         let _pws = self.password.clone();
-        let salt = b"randomsalt";
 
         let config = argon2::Config::default();
 
@@ -78,9 +76,15 @@ struct RefreshResponse {
     access_token: String,
 }
 
+#[derive(Serialize, Deserialize)]
+struct ValidateResponse {
+    username: String,
+    name: String,
+}
+
 pub fn authorize() -> Scope {
     let secret = envy::prefixed("SECRET__")
-    .from_env::<Secret>().expect("Please provide SECRET__ACCESS and SECRET__REFRESH in .env");
+    .from_env::<Secret>().expect("Please provide SECRET__ACCESS, SECRET__REFRESH and SECRET__SALT in .env");
 
     web::scope("/user")
         .app_data(web::Data::new(secret.clone()))
@@ -90,6 +94,7 @@ pub fn authorize() -> Scope {
         .route("/refresh", web::post().to(refresh))
 }
 
+/// Register should add user from POST form to database and return 200 OK
 async fn register(req: HttpRequest, form: web::Form<RegisterForm>) -> HttpResponse {
     let data = req.app_data::<web::Data<MongoDB>>().unwrap().database.clone();
     let client = req.app_data::<web::Data<MongoDB>>().unwrap().client.clone();
@@ -131,7 +136,7 @@ async fn register(req: HttpRequest, form: web::Form<RegisterForm>) -> HttpRespon
         uuid: Uuid::new_v4(),
         username: form.username.clone(),
         email: form.email.clone(),
-        password_hash: form.generate_pwsh(),
+        password_hash: form.generate_pwsh(_secret.unwrap().salt.as_bytes()),
         name: form.name.clone(),
         refresh_token: encode_refresh_token(form.username.clone(), _secret.unwrap()),
         //refresh_token: "".to_string(),
@@ -144,7 +149,11 @@ async fn register(req: HttpRequest, form: web::Form<RegisterForm>) -> HttpRespon
 
     match _db {
         Ok(_) => {
-            HttpResponse::Ok().body(format!("Created user: {:#?}", _new_user))
+            HttpResponse::Ok().json(
+                Response {
+                    message: format!("Hello, {:#?}!", _new_user.name.clone())
+                }
+            )
         }
         Err(_) => {
             HttpResponse::BadRequest().body(format!("Could not create user!"))
@@ -152,6 +161,7 @@ async fn register(req: HttpRequest, form: web::Form<RegisterForm>) -> HttpRespon
     }
 }
 
+/// Login should check user's identity from POST form return access and refresh tokens
 async fn login(req: HttpRequest, form: web::Form<LoginForm>) -> HttpResponse {
     let data = req.app_data::<web::Data<MongoDB>>().unwrap().database.clone();
     let client = req.app_data::<web::Data<MongoDB>>().unwrap().client.clone();
@@ -232,7 +242,7 @@ async fn login(req: HttpRequest, form: web::Form<LoginForm>) -> HttpResponse {
     )
 }
 
-/// Silent refresh
+/// Silent refresh should find token's user in database and respond with a new access token
 async fn refresh(req: HttpRequest, form: web::Form<RefreshForm>) -> HttpResponse {
     let data = req.app_data::<web::Data<MongoDB>>().unwrap().database.clone();
     let client = req.app_data::<web::Data<MongoDB>>().unwrap().client.clone();
@@ -276,6 +286,10 @@ async fn refresh(req: HttpRequest, form: web::Form<RefreshForm>) -> HttpResponse
 
 // Validation for Access Token
 async fn validate(token: crate::access::extractor::extract::Token) -> HttpResponse {
-    println!("{}", token.username);
-    HttpResponse::Ok().json(Response {message: "Authorized".to_owned()})
+    HttpResponse::Ok().json(
+        ValidateResponse {
+            username: token.username,
+            name: token.name,
+        }
+    )
 }

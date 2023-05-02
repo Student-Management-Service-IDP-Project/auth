@@ -4,10 +4,9 @@ use auth_lib::api::authorize::authorize;
 use auth_lib::db::mongo::{Database, MongoDB, connect_mongo};
 
 use envy;
-use actix_web::{self, HttpServer, App, middleware::Logger};
+use actix_web::{self, HttpServer, App};
 use serde::Deserialize;
 use mongodb::{bson::doc, sync::Client};
-use log::{debug, error, log_enabled, info, Level};
 
 #[derive(Debug, Deserialize)]
 struct Config {
@@ -45,6 +44,7 @@ async fn main() -> std::io::Result<()> {
         database: _db,
     };
 
+    // Start service
     HttpServer::new(move || {
         App::new()
             .app_data(actix_web::web::Data::new(

@@ -6,7 +6,7 @@ use super::super::tokens::Secret;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AccessClaims {
-    pub exp: usize,          // Required (validate_exp defaults to true in validation). Expiration time (as UTC timestamp)
+    pub exp: usize,
     pub custom: Token,
 }
 
@@ -16,13 +16,13 @@ pub struct Token {
     pub name: String,
 }
 
-/* Trait to validate and retrieve User Data from JWT */
+/// Trait to validate and retrieve User Data from JWT
 impl FromRequest for Token {
     type Error = actix_web::Error;
     type Future = Ready<Result<Self, Self::Error>>;
     
     fn from_request(req: &actix_web::HttpRequest, _payload: &mut actix_web::dev::Payload) -> Self::Future {
-        /* Get Header from Request */
+        // Get Header from Request
         let _header = req.headers().get(http::header::AUTHORIZATION);
 
         match _header {
@@ -32,13 +32,13 @@ impl FromRequest for Token {
             }
         }
 
-        /* Get JWT from Header */
+        // Get JWT from Header
         let _token = _header.unwrap().to_str().unwrap_or("").to_string();
         if _token.is_empty() {
             return ready(Err(error::ErrorUnauthorized("Empty access token provided!")));
         }
         
-        /* Get Access Secret from app_data */
+        // Get Access Secret from app_data
         let _secret = req.app_data::<web::Data<Secret>>();
 
         match _secret {
@@ -56,7 +56,7 @@ impl FromRequest for Token {
             &Validation::new(Algorithm::HS256),
         );
         
-        /* Decode the token return */
+        // Decode the token return
         match data {
             Ok(t) => {
                 return ready(
@@ -89,13 +89,13 @@ pub struct Info {
     pub username: String,
 }
 
-/* Trait to validate and retrieve User Data from JWT */
+/// Trait to validate and retrieve User Data from JWT
 impl FromRequest for Info {
     type Error = actix_web::Error;
     type Future = Ready<Result<Self, Self::Error>>;
     
     fn from_request(req: &actix_web::HttpRequest, _payload: &mut actix_web::dev::Payload) -> Self::Future {
-        /* Get Header from Request */
+        // Get Header from Request
         let _header = req.headers().get(http::header::AUTHORIZATION);
 
         match _header {
@@ -105,13 +105,13 @@ impl FromRequest for Info {
             }
         }
 
-        /* Get JWT from Header */
+        // Get JWT from Header
         let _token = _header.unwrap().to_str().unwrap_or("").to_string();
         if _token.is_empty() {
             return ready(Err(error::ErrorUnauthorized("Empty access token provided!")));
         }
         
-        /* Get Access Secret from app_data */
+        // Get Access Secret from app_data
         let _secret = req.app_data::<web::Data<Secret>>();
 
         match _secret {
@@ -129,7 +129,7 @@ impl FromRequest for Info {
             &Validation::new(Algorithm::HS256),
         );
         
-        /* Decode the token return */
+        // Decode the token return
         match data {
             Ok(t) => {
                 return ready(
