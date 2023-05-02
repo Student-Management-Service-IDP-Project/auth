@@ -106,10 +106,10 @@ docker compose down
 `> Content-type:` __x-www-form-urlencoded__
 
 `> Body:`
-```json
+```
 {
-    username: "mock_unique_user",
-    password: "mocksafepassword1234"
+    username: mock_unique_user 
+    password: mocksafepassword1234
 }
 ```
 ---
@@ -156,10 +156,10 @@ __200 OK__
 `> Body:`
 ```
 {
-    username: mock_unique_user,
-    email: mock@mockmail.com,
-    password: mocksafepassword1234,
-    name: John Doe,
+    username: mock_unique_user
+    email: mock@mockmail.com
+    password: mocksafepassword1234
+    name: John Doe
     photo_url: aws_s3_url(...).com
 }
 ```
