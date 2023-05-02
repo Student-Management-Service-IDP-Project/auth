@@ -1,8 +1,6 @@
-use std::io::Error;
-
 use actix_web::{Scope, web, HttpResponse, http::StatusCode, HttpRequest};
 use bson::doc;
-use jsonwebtoken::{ encode, EncodingKey, Header, DecodingKey, Validation, TokenData, decode };
+use jsonwebtoken::{ DecodingKey, Validation, TokenData, decode };
 use serde::{Deserialize, Serialize};
 use crate::{db::{mongo::{MongoDB, find_one}, parser::user::{User, DBParser}}, access::{tokenize::parser::{encode_refresh_token, encode_access_token}, extractor::extract::RefreshClaims}};
 use uuid::Uuid;
@@ -70,6 +68,16 @@ struct Response {
     message: String,
 }
 
+#[derive(Serialize, Deserialize)]
+struct RefreshForm {
+    token: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct RefreshResponse {
+    access_token: String,
+}
+
 pub fn authorize() -> Scope {
     let secret = envy::prefixed("SECRET__")
     .from_env::<Secret>().expect("Please provide SECRET__ACCESS and SECRET__REFRESH in .env");
@@ -78,7 +86,7 @@ pub fn authorize() -> Scope {
         .app_data(web::Data::new(secret.clone()))
         .route("/login", web::post().to(login))
         .route("/register", web::post().to(register))
-        .route("/validate", web::post().to(validate))
+        .route("/validate", web::get().to(validate))
         .route("/refresh", web::post().to(refresh))
 }
 
@@ -224,10 +232,50 @@ async fn login(req: HttpRequest, form: web::Form<LoginForm>) -> HttpResponse {
     )
 }
 
-async fn refresh() -> HttpResponse {
-    HttpResponse::new(StatusCode::OK)
+/// Silent refresh
+async fn refresh(req: HttpRequest, form: web::Form<RefreshForm>) -> HttpResponse {
+    let data = req.app_data::<web::Data<MongoDB>>().unwrap().database.clone();
+    let client = req.app_data::<web::Data<MongoDB>>().unwrap().client.clone();
+
+    // Get secret from local data
+    let _secret = req.app_data::<web::Data<Secret>>();
+
+    match _secret {
+        Some(_) => {}
+        None => {
+            return HttpResponse::new(StatusCode::BAD_REQUEST);
+        }
+    }
+
+    let _mongodb = MongoDB {
+        client: client,
+        database: data,
+    };
+
+    let filter_token = doc! {
+        "refresh_token": form.token.clone()
+    };
+
+    if !find_one(&_mongodb, filter_token.clone()) {
+        return HttpResponse::BadRequest().json(Response { message: String::from("Refresh Token doesn't exist. Please redirect user to login.")})
+    }
+
+    let _coll = _mongodb.client.database(&_mongodb.database.name).collection::<User>(&_mongodb.database.collection);
+    let _cursor_user = _coll.find(filter_token.clone(), None).unwrap();
+
+    let _user = _cursor_user.deserialize_current().unwrap();
+
+    let access_token = encode_access_token(_user.username.clone(), _user.name.unwrap_or("".to_string()).clone(), _secret.unwrap());
+
+    HttpResponse::Ok().json(
+        RefreshResponse {
+            access_token
+        }
+    )
 }
 
-async fn validate() -> HttpResponse {
-    HttpResponse::new(StatusCode::OK)
+// Validation for Access Token
+async fn validate(token: crate::access::extractor::extract::Token) -> HttpResponse {
+    println!("{}", token.username);
+    HttpResponse::Ok().json(Response {message: "Authorized".to_owned()})
 }

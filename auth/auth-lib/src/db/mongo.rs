@@ -1,5 +1,5 @@
 use bson::Document;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize};
 use mongodb::{bson::doc, options::{ClientOptions, ServerApi, ServerApiVersion}, sync::{Client, self}, Collection};
 
 use super::parser::user::User;

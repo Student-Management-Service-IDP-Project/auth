@@ -68,7 +68,10 @@ impl FromRequest for Token {
                     )
                 );
             }
-            Err(_) => {
+            Err(err) => {
+                if let jsonwebtoken::errors::ErrorKind::ExpiredSignature = err.clone().into_kind() {
+                    return ready(Err(error::ErrorUnauthorized("Token timed out!")));
+                }
                 return ready(Err(error::ErrorUnauthorized("Invalid token!")));
                 }
         }
