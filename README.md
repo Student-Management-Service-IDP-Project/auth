@@ -107,10 +107,8 @@ docker compose down
 
 `> Body:`
 ```
-{
     username: mock_unique_user 
     password: mocksafepassword1234
-}
 ```
 ---
 `> Response:`
@@ -155,13 +153,11 @@ __200 OK__
 
 `> Body:`
 ```
-{
     username: mock_unique_user
     email: mock@mockmail.com
     password: mocksafepassword1234
     name: John Doe
     photo_url: aws_s3_url(...).com
-}
 ```
 
 ❗️ `name` and `photo_url` fields are optional.
@@ -243,9 +239,7 @@ __200 OK__
 
 `> Body:`
 ```
-{
     token: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE2ODMwMTcxMjEsImN1c3RvbSI6eyJ1c2VybmFtZSI6Im5vdHNvZmluYWxib3NzIiwibmFtZSI6IkZpbmFsIEJvc3MifX0.4o7jVms9HzEUqwtF9FC-8HUS5aWmJOSoDuH_M2I0YPQ
-}
 ```
 ---
 `> Response:`
