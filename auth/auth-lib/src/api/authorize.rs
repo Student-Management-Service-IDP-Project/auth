@@ -4,7 +4,7 @@ use actix_web::{Scope, web, HttpResponse, http::StatusCode, HttpRequest};
 use bson::doc;
 use jsonwebtoken::{ encode, EncodingKey, Header, DecodingKey, Validation, TokenData, decode };
 use serde::{Deserialize, Serialize};
-use crate::{db::{mongo::{MongoDB, find_one}, parser::user::{User, DBParser}}, access::tokenize::parser::encode_refresh_token};
+use crate::{db::{mongo::{MongoDB, find_one}, parser::user::{User, DBParser}}, access::{tokenize::parser::{encode_refresh_token, encode_access_token}, extractor::extract::RefreshClaims}};
 use uuid::Uuid;
 extern crate argon2;
 
@@ -59,6 +59,16 @@ impl Generate for RegisterForm {
     }
 }
 
+#[derive(Serialize,Deserialize)]
+struct LoginResponse {
+    access_token: String,
+    refresh_token: String,
+}
+
+#[derive(Serialize,Deserialize)]
+struct Response {
+    message: String,
+}
 
 pub fn authorize() -> Scope {
     let secret = envy::prefixed("SECRET__")
@@ -163,9 +173,11 @@ async fn login(req: HttpRequest, form: web::Form<LoginForm>) -> HttpResponse {
     if !find_one(&_mongodb, filter_username.clone()) {
         return HttpResponse::BadRequest().body(format!("Username not found!"));
     }
+
+    // Verify password with hash
     let _coll = _mongodb.client.database(&_mongodb.database.name).collection::<User>(&_mongodb.database.collection);
-    let _cursor = _coll.find(filter_username.clone(), None).unwrap();
-    let _user = _cursor.deserialize_current().unwrap();
+    let _cursor_user = _coll.find(filter_username.clone(), None).unwrap();
+    let _user = _cursor_user.deserialize_current().unwrap();
     
     let _password_hash = _user.password_hash.clone();
     
@@ -173,9 +185,43 @@ async fn login(req: HttpRequest, form: web::Form<LoginForm>) -> HttpResponse {
         return HttpResponse::BadRequest().body(format!("Password doesn't match!"));   
     }
 
-    let _password = form.password.clone();
+    // Return access and refresh JWT
+    let _refresh_jwt = _user.refresh_token.clone();
 
-    HttpResponse::new(StatusCode::OK)
+    // Decode Token to verify if it expired
+    let decoded: Result<TokenData<RefreshClaims>, jsonwebtoken::errors::Error> = decode::<RefreshClaims>(
+        &_refresh_jwt,
+        &DecodingKey::from_secret(_secret.unwrap().refresh.as_str().as_ref()),
+        &Validation::new(jsonwebtoken::Algorithm::HS256)
+    );
+
+    match decoded {
+        Ok(_) => {},
+        Err(err) => {
+            // Refresh JWT has expired, generate a new one
+            if let jsonwebtoken::errors::ErrorKind::ExpiredSignature = err.clone().into_kind() {
+                let _new_token = encode_refresh_token(form.username.clone(), &_secret.unwrap());
+
+                match _user.update_token(&_mongodb, _new_token) {
+                    Ok(_) => {},
+                    Err(_) => {
+                        return HttpResponse::BadRequest().json(Response {message: String::from("Error while updating the refresh token in Database")});
+                    }
+                }
+            }
+            return HttpResponse::BadRequest().json(Response {message: format!("Could not parse Refresh Token because of {:?}", err.clone().into_kind())});   
+        }
+    }
+
+    let access_token = encode_access_token(_user.username.clone(), _user.name.unwrap_or("".to_string()).clone(), &_secret.unwrap());
+    let refresh_token: String = _user.refresh_token.clone();
+
+    HttpResponse::Ok().json(
+        LoginResponse {
+            access_token,
+            refresh_token
+        }
+    )
 }
 
 async fn refresh() -> HttpResponse {

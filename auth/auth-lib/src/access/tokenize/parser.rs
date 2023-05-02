@@ -6,7 +6,7 @@ use crate::{access::{extractor::extract::{AccessClaims, Token, RefreshClaims, In
 
 pub fn encode_access_token(username: String,
     name: String,
-    secret: web::Data<Secret>) -> String {
+    secret: &web::Data<Secret>) -> String {
     let exp: usize = (Utc::now() + Duration::minutes(5)).timestamp() as usize; /* exp date -> tbd with refresh times */
 
     let claims = AccessClaims {

@@ -14,6 +14,7 @@ pub trait DBParser {
     fn update_name(&self, mongodb: &MongoDB, name: String) -> Result<UpdateResult, mongodb::error::Error>;
     fn update_photo(&self, mongodb: &MongoDB, photo_url: String) -> Result<UpdateResult, mongodb::error::Error>;
     fn update_password(&self, mongodb: &MongoDB, password_hash: String) -> Result<UpdateResult, mongodb::error::Error>;
+    fn update_token(&self, mongodb: &MongoDB, refresh_token: String) -> Result<UpdateResult, mongodb::error::Error>;
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -103,6 +104,24 @@ impl DBParser for User {
         let update = doc! {
             "$set": {
                 "password_hash": password_hash
+            }
+        };
+
+        _coll.update_one(filter, update, None)
+    }
+
+    fn update_token(&self, mongodb: &MongoDB, refresh_token: String) -> Result<UpdateResult, mongodb::error::Error> {
+        let _coll = mongodb.client.database(&mongodb.database.name).collection::<User>(&mongodb.database.collection);
+        
+        let _uuid = self.uuid;
+
+        let filter = doc! {
+            "_id": _uuid
+        };
+
+        let update = doc! {
+            "$set": {
+                "refresh_token": refresh_token
             }
         };
 
