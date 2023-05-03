@@ -17,3 +17,4 @@ mongodb = {version = "2.5.0", default-features = false, features = ["sync"]}
 bson = "2.6.1"
 env_logger = "0.10.0"
 log = "0.4.17"
+actix-cors = "0.6.4"

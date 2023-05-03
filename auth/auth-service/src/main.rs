@@ -7,6 +7,7 @@ use envy;
 use actix_web::{self, HttpServer, App};
 use serde::Deserialize;
 use mongodb::{bson::doc, sync::Client};
+use actix_cors::Cors;
 
 #[derive(Debug, Deserialize)]
 struct Config {
@@ -46,7 +47,13 @@ async fn main() -> std::io::Result<()> {
 
     // Start service
     HttpServer::new(move || {
+        let cors = Cors::permissive()
+                .allow_any_origin()
+                .allow_any_method()
+                .max_age(3600);
+
         App::new()
+            .wrap(cors)
             .app_data(actix_web::web::Data::new(
                 _mongo.clone()
             ))
