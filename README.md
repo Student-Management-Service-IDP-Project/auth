@@ -1,103 +1,8 @@
-# Authentication Service
+## Authentication Service
 
-## 1. Brief Summary of implementation
+###  __API__
 
-### `/auth`
-Written in `Rust`, using:
-- [`actix web framework`](https://actix.rs) for managing requests
-- [`jsonwebtoken crate`](https://crates.io/crates/jsonwebtoken) for authorization token encoding/decoding
-- [`bcrypt`](https://crates.io/crates/bcrypt) for hashing and verifying passwords securely
-- [`mongodb crate`](https://crates.io/crates/mongodb) with `bson`
-for operations on the database
-
-> _The code is expected to `panic` only in absence of environment variables._
-
-```
-.
-├── Cargo.lock
-├── Cargo.toml 
-├── Dockerfile
-├── auth-lib
-│   ├── Cargo.toml
-│   └── src
-│       ├── access
-│       │   ├── extractor
-│       │   │   ├── extract.rs
-│       │   │   └── mod.rs
-│       │   ├── mod.rs
-│       │   ├── tokenize
-│       │   │   ├── mod.rs
-│       │   │   └── parser.rs
-│       │   └── tokens.rs
-│       ├── api
-│       │   ├── authorize.rs
-│       │   └── mod.rs
-│       ├── db
-│       │   ├── mod.rs
-│       │   ├── mongo.rs
-│       │   └── parser
-│       │       ├── mod.rs
-│       │       └── user.rs
-│       └── lib.rs
-└── auth-service
-    ├── Cargo.toml
-    └── src
-        └── main.rs
-```
-
-### __User Structure__ (as stored in database)
-
-```rust
-#[derive(Deserialize, Serialize, Debug)]
-pub struct User {
-    #[serde(rename = "_id")]
-    pub uuid: Uuid,
-
-    pub username: String,
-    pub email: String,
-
-    pub password_hash: String,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
-    pub refresh_token: String,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub photo_url: Option<String>,
-
-    #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
-    pub refresh_creation: chrono::DateTime<Utc>,
-}
-```
-
-### `/.devcontainer`
-- docker compose uses `auth/Dockerfile` (builds from `rust:latest`)
-- all the sensible information for the server (Secret for HMAC, Salt for Bcrypt, Database URL that contains user & password) should be kept in `config/.env`
-
-
-```
-.
-├── config
-│   └── .env
-└── docker-compose.yml
-```
-
-## 2. Set Up
-Build and run from docker-compose:
-```
-cd .devcontainer/
-docker compose up --build
-```
-The container should be running now on port localhost:3000.
-
-To stop container, run the command:
-```
-docker compose down
-```
-
-## 3. __API__
-
-### `LOGIN USER REQUEST`
+#### `LOGIN USER REQUEST`
 ---
 `> Request-type:` _POST_
 
@@ -143,7 +48,7 @@ __200 OK__
 }
 ```
 
-### `REGISTER USER REQUEST`
+#### `REGISTER USER REQUEST`
 ---
 `> Request-type:` _POST_
 
@@ -156,11 +61,7 @@ __200 OK__
     username: mock_unique_user
     email: mock@mockmail.com
     password: mocksafepassword1234
-    name: John Doe
-    photo_url: aws_s3_url(...).com
 ```
-
-❗️ `name` and `photo_url` fields are optional.
 
 ---
 `> Response:`
@@ -180,7 +81,7 @@ _Succesful:_
 
 __200 OK__
 
-### `VALIDATE USER REQUEST`
+#### `VALIDATE USER REQUEST`
 ---
 `> Request-type:` _GET_
 
