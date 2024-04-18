@@ -1,0 +1,20 @@
+[package]
+name = "auth-service"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+pkcs1 = "0.7.5"
+dotenv = "0.15.0"
+actix-web = "4.3.1"
+tokio = "1.28.0"
+auth-lib = {path = "../auth-lib"}
+envy = "0.4"
+serde = {version = "1.0", features = ["derive"]}
+mongodb = {version = "2.5.0", default-features = false, features = ["sync"]}
+bson = "2.6.1"
+env_logger = "0.10.0"
+log = "0.4.17"
+actix-cors = "0.6.4"
