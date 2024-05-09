@@ -3,7 +3,6 @@ extern crate env_logger;
 use auth_lib::api::authorize::authorize;
 use auth_lib::db::mongo::{Database, MongoDB, connect_mongo};
 
-use envy;
 use actix_web::{self, HttpServer, App};
 use serde::Deserialize;
 use mongodb::{bson::doc, sync::Client};
@@ -18,14 +17,12 @@ struct Config {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // Get environment variables
-    let config = envy::prefixed("AUTH__")
-                    .from_env::<Config>().expect("Please provide AUTH__PORT and AUTH__HOST in .env");
+    let config = Config {port:3000, host: "0.0.0.0".into()};
 
-    let _db = envy::prefixed("DATABASE_")
-                    .from_env::<Database>().expect("Please provide DATABASE_URL in .env");
+    let db = Database { name: "school".to_string(), collection: "auth".to_string() };
 
     // Connect to DB
-    let _client =  connect_mongo(&_db.url);
+    let _client = connect_mongo();
 
     // Get Client for DB
     let client: Client;
@@ -42,7 +39,7 @@ async fn main() -> std::io::Result<()> {
     // Initialize State for App
     let _mongo = MongoDB {
         client,
-        database: _db,
+        database: db,
     };
 
     // Start service
